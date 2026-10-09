@@ -14,7 +14,10 @@ def main():
     
     # Parse gradleRioVersion: 2026.2.1 (Handles : or = separators)
     # This maps to VSCODE_WPILIB_VERSION in the Dockerfile
-    wpilib_version_match = re.search(r'gradleRioVersion\s*[:=]\s*([\d\.]+)', props_content)
+    wpilib_version_match = re.search(
+        r'gradleRioVersion\s*[:=]\s*["\']?([\d\.]+(?:-[\w.\-+]+)?)["\']?',
+        props_content
+    )
     if not wpilib_version_match:
         raise ValueError("Could not find gradleRioVersion in gradle.properties")
     wpilib_version = wpilib_version_match.group(1)
