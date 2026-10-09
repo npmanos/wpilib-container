@@ -4,8 +4,8 @@ on:
   push:
     branches: [ "develop" ]
     paths:
-      - 'Dockerfile'
-      - '.versions'
+      - './Dockerfile'
+      - './.versions'
       - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
 
