@@ -28,47 +28,55 @@ def main():
     versions_url = f'https://raw.githubusercontent.com/wpilibsuite/WPILibInstaller-Avalonia/refs/tags/v{wpilib_version}/scripts/versions.gradle'
     versions_content = get_content(versions_url)
 
-    # Helper regex for Groovy properties: ext.name = 'value' or "value"
-    def find_groovy_var(var_name, content):
-        pattern = f"ext\.{var_name}\s*=\s*['\"]([^'\"]+)['\"]"
+    # Universal Groovy property extractor: handles single/double quotes, unquoted variables, and aliases
+    def find_groovy_var(var_names, content, default=None):
+        if isinstance(var_names, str):
+            var_names = [var_names]
+        names_pattern = "|".join(re.escape(name) for name in var_names)
+        pattern = rf"ext\.(?:{names_pattern})\s*=\s*(?:['\"]([^'\"]+)['\"]|([a-zA-Z0-9_.\-]+))"
         match = re.search(pattern, content)
         if not match:
-            raise ValueError(f"Could not find ext.{var_name} in versions.gradle")
-        return match.group(1)
+            if default is not None:
+                return default
+            raise ValueError(f"Could not find any of ext.{var_names} in versions.gradle")
+        return match.group(1) or match.group(2)
 
-    # 3. Parse required variables
+    # 3. Parse required variables with pre-release safety
     gcc_version = find_groovy_var('gccVersion', versions_content)
     toolchain_version = find_groovy_var('toolchainGitTag', versions_content)
-    jdk_tag_raw = find_groovy_var('jdkVersion', versions_content) # e.g., jdk-17.0.12+7
-    wpilib_year = find_groovy_var('frcYear', versions_content)
+    jdk_tag_raw = find_groovy_var('jdkVersion', versions_content)
+    
+    # Handle both 'wpilibYear' and legacy 'frcYear'
+    wpilib_year_raw = find_groovy_var(['wpilibYear', 'frcYear'], versions_content)
+    year_match = re.search(r'\b(20\d\d)\b', wpilib_year_raw)
+    wpilib_year = year_match.group(1) if year_match else wpilib_year_raw
 
-    # 4. Process variables for Dockerfile compatibility
+    # Optional: Extract pre-release tool versions if needed in .versions
+    advantagescope_version = find_groovy_var('advantagescopeGitTag', versions_content, default='')
+    elastic_version = find_groovy_var('elasticGitTag', versions_content, default='')
+    vscode_version = find_groovy_var('vsCodeVersion', versions_content, default='')
 
-    # JDK TAG: URL encode the '+' to '%2B' for the download URL
-    # e.g., jdk-17.0.12+7 -> jdk-17.0.12%2B7
-    jdk_tag_encoded = jdk_tag_raw.replace('+', '%2B')
-
-    # JDK FILE: Construct the tar.gz filename
-    # Pattern: jdk-17.0.12+7 -> OpenJDK17U-jdk_x64_linux_hotspot_17.0.12_7.tar.gz
-    # Remove 'jdk-' prefix and replace '+' with '_'
-    jdk_ver_clean = jdk_tag_raw.replace('jdk-', '').replace('+', '_')
-    # jdk_file = f"OpenJDK17U-jdk_x64_linux_hotspot_{jdk_ver_clean}.tar.gz"
-
-    # TOOLCHAIN FILE: Construct the filename
-    # Pattern: cortexa9_vfpv3-roborio-academic-{YEAR}-x86_64-linux-gnu-Toolchain-{GCC}.tgz
-    # toolchain_file = f"cortexa9_vfpv3-roborio-academic-{wpilib_year}-x86_64-linux-gnu-Toolchain-{gcc_version}.tgz"
+    # 4. Normalize JDK strings
+    clean_jdk_ver = re.sub(r'^jdk-', '', jdk_tag_raw)
+    jdk_tag = f"jdk-{clean_jdk_ver}" if not jdk_tag_raw.startswith("jdk-") else jdk_tag_raw
+    jdk_tag_encoded = jdk_tag.replace('+', '%2B')
+    jdk_ver_clean = clean_jdk_ver.replace('+', '_')
 
     # 5. Write to .versions file
     output_lines = [
         f"VSCODE_WPILIB_VERSION={wpilib_version}",
         f"WPILIB_VERSION={wpilib_version}",
         f"WPILIB_YEAR={wpilib_year}",
+        f"WPILIB_YEAR_RAW={wpilib_year_raw}",
         f"GCC_VERSION={gcc_version}",
         f"TOOLCHAIN_VERSION={toolchain_version}",
-        # f"TOOLCHAIN_FILE={toolchain_file}",
         f"JDK_TAG={jdk_tag_encoded}",
-        f"JDK_TAG_CLEAN={jdk_ver_clean}"
+        f"JDK_TAG_CLEAN={jdk_ver_clean}",
+        f"VSCODE_VERSION={vscode_version}",
+        f"ADVANTAGESCOPE_VERSION={advantagescope_version}",
+        f"ELASTIC_VERSION={elastic_version}"
     ]
+
 
     with open('.versions', 'w') as f:
         f.write('\n'.join(output_lines) + '\n')
