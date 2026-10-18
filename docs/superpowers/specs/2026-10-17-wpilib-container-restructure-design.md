@@ -8,19 +8,20 @@ Status: draft, awaiting review
 Make the repo easier to maintain. Today it scrapes another repo's Groovy build
 script with regexes, constructs download URLs and filenames by hand, spreads one
 version key across four files, and has no tests. After this change it has one
-pin (the WPILib version), one Dockerfile that installs from WPILib's own
-installer bundle, and CI that verifies the image before publishing.
+pin (the WPILib version), one Dockerfile that extracts what it needs from
+WPILib's own installer bundle, and CI that verifies the image before
+publishing.
 
 ## Scope
 
 - Build only the current WPILib release. Already-published images (for example
   the 2026 tags on ghcr) are untouched. Pre-2027 build logic is removed because
   it is never built again.
-- The installer CLI (`WPILibInstaller-CLI`) exists from 2027 onward. This design
-  depends on it.
+- The installer bundle layout used here (an `*-artifacts.tar.gz` inside the
+  installer tarball) is the 2027 layout. This design depends on it.
 
 Non-goals: checksum verification of downloads, supporting multiple seasons in
-one Dockerfile, any change to the image name.
+one Dockerfile, running the installer CLI, any change to the image name.
 
 ## Design
 
@@ -30,10 +31,9 @@ one Dockerfile, any change to the image name.
 wpilib.version   (one line, e.g. 2027.0.0-alpha-7)
       |  Renovate (hosted app) opens a bump PR
       v
-Dockerfile
-  stage "base":  download bundle, run installer CLI in tools mode,
-                 extract the artifacts tarball over the install, prune
-  stage "final": devcontainers base + apt deps + COPY --from=base
+Dockerfile (single stage): one streaming RUN downloads the installer bundle,
+      pulls the artifacts tarball out of it, and extracts only the keep list
+      into ~/.local/share/wpilib/<WpilibYear>
       v
 CI: build per arch, smoke test, multi-arch manifest
 ```
@@ -45,38 +45,47 @@ without the leading `v`. It is the only version input to the build.
 
 ### Dockerfile
 
-Base image stays `mcr.microsoft.com/devcontainers/base:ubuntu-24.04`. Build args
-are `WPILIB_VERSION` and `TARGETARCH` (`amd64` or `arm64`).
+Base image stays `mcr.microsoft.com/devcontainers/base:ubuntu-24.04`, with the
+existing apt packages. Build args are `WPILIB_VERSION` and `TARGETARCH`
+(`amd64` or `arm64`). The Dockerfile sets `SHELL ["/bin/bash", "-o", "pipefail",
+"-c"]` so a failed download inside a pipe fails the build.
 
-**Stage `base`** (runs as `vscode`):
+The installer CLI is not run. The artifacts tarball inside the installer bundle
+already contains every directory the image keeps (verified by listing the
+alpha-7 amd64 tarball: paths are relative to the install root, with no year
+prefix).
 
-1. Download
-   `https://packages.wpilib.workers.dev/installer/v${WPILIB_VERSION}/WPILib_Linux-${ARCH}-${WPILIB_VERSION}.tar.gz`,
-   where `ARCH` is `x64` for amd64 and `Arm64` for arm64, and extract it.
-2. Run `WPILibInstaller-CLI --install-mode tools --force`. The CLI installs to
-   `~/.local/share/wpilib/<WpilibYear>` (its default on Linux when
-   `XDG_DATA_HOME` is unset); the Dockerfile does not override this.
-3. Extract `WPILib_Linux-*-artifacts.tar.gz` over that directory. This is the
-   same procedure that was done by hand for the local alpha-7 install.
-4. Prune everything not on the keep list.
-5. Create `~/.local/share/wpilib/.current` as a symlink to the year directory.
-   The year directory name is the installer's `WpilibYear`
-   (`installUtils/upgradeConfig.json`). It is not derivable from the version
-   string: alpha-2 and alpha-6 use `2027_alpha1` and `2027_alpha5`.
+One `RUN`, as `vscode`, does the following in a single pass:
 
-**Keep list** (everything else is deleted): `jdk`, `systemcore`,
+1. Stream
+   `https://packages.wpilib.workers.dev/installer/v${WPILIB_VERSION}/WPILib_Linux-${ARCH}-${WPILIB_VERSION}.tar.gz`
+   (`ARCH` is `x64` for amd64 and `Arm64` for arm64) through `tar`, extracting
+   only the `*-artifacts.tar.gz` member to stdout.
+2. Pipe that into a second `tar` that extracts only the keep list into a
+   staging directory, `~/.local/share/wpilib/.staging`.
+3. Read `WpilibYear` from `.staging/installUtils/upgradeConfig.json` and move
+   the staging directory to `~/.local/share/wpilib/<WpilibYear>`. The year
+   directory name is not derivable from the version string: alpha-2 and alpha-6
+   use `2027_alpha1` and `2027_alpha5`.
+4. Create `~/.local/share/wpilib/.current` as a symlink to the year directory.
+
+Because the bundle is streamed, no large file is written to an image layer.
+
+**Keep list** (everything else is never extracted): `jdk`, `systemcore`,
 `vsCodeExtensions`, `wpilibcode`, `vendordeps`, `documentation`,
-`tools/tools.json`, `installUtils`. Dropped: `maven`, `advantagescope`,
+`tools/tools.json`, `installUtils`. Not extracted: `maven`, `advantagescope`,
 `elastic`, `icons`, and the rest of `tools`. Estimated image contribution is
 about 2.2 GB for amd64, from sizes measured on a local install.
 
-**Stage `final`:** the existing base image and apt packages, then
-`COPY --from=base --chown=vscode:vscode` of `~/.local/share/wpilib`, then:
+Environment:
 
 ```
 ENV JAVA_HOME=/home/vscode/.local/share/wpilib/.current/jdk
 ENV PATH=${JAVA_HOME}/bin:$PATH:/home/vscode/.local/share/wpilib/.current/systemcore/bin
 ```
+
+`.current` exists because `ENV` needs a literal path and the year directory name
+is only known after extraction.
 
 The OCI labels stay (`source`, `base.name`, `version`).
 
@@ -119,7 +128,7 @@ A script in `scripts/` run inside each built image:
 - `java -version` succeeds and `JAVA_HOME` resolves through `.current`.
 - The cross-compiler under `.current/systemcore/bin` runs with `--version`.
 - A `vscode-wpilib-*.vsix` exists under `.current/vsCodeExtensions`.
-- `.current/maven` does not exist.
+- `.current/tools/tools.json` exists and `.current/maven` does not.
 
 ### Docs
 
@@ -131,11 +140,11 @@ symlink, the new tags, and the `postCreateCommand` path to the `.vsix`.
 
 All of these can only be confirmed in CI; the PR workflow is where they surface.
 
-- The CLI may need runtime libraries (for example ICU or OpenSSL) that the
-  devcontainers base image lacks.
-- Whether `tools/tools.json` is produced by the CLI's tool setup or comes from
-  the tarball. If it comes from the CLI, that is why the CLI is run at all
-  rather than only extracting the tarball.
+- The arm64 bundle's artifacts tarball is assumed to have the same layout as
+  amd64 (verified for amd64 only), with an arm64 JDK and toolchain.
+- The extraction path list for the second `tar` must match the tarball's member
+  names exactly; a typo silently drops a directory, which the smoke test is
+  there to catch.
 - Renovate's ordering of prerelease versions: plain semver compares
   `alpha-10` before `alpha-7`. Check with Renovate's config validator before
   relying on automerge.
