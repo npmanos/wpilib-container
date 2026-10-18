@@ -1,20 +1,20 @@
 {
-    "name": "WPILib 2026",
-    "image": "ghcr.io/npmanos/devcontainer_wpilib:2026",
+    "name": "WPILib 2027",
+    "image": "ghcr.io/npmanos/devcontainer_wpilib:2027.0.0-alpha-7",
     "customizations": {
         "vscode": {
             "settings": {
-                "java.home": "/home/vscode/wpilib/2026/jdk",
-                "java.import.gradle.java.home": "/home/vscode/wpilib/2026/jdk",
+                "java.home": "/home/vscode/.local/share/wpilib/.current/jdk",
+                "java.import.gradle.java.home": "/home/vscode/.local/share/wpilib/.current/jdk",
                 "java.configuration.runtimes": [
                     {
-                        "name": "JavaSE-17",
-                        "path": "/home/vscode/wpilib/2026/jdk",
+                        "name": "JavaSE-25",
+                        "path": "/home/vscode/.local/share/wpilib/.current/jdk",
                         "default": true
                     }
                 ],
                 "terminal.integrated.env.linux": {
-                    "JAVA_HOME": "/home/vscode/wpilib/2026/jdk"
+                    "JAVA_HOME": "/home/vscode/.local/share/wpilib/.current/jdk"
                 }
             },
             "extensions": [
@@ -23,7 +23,7 @@
             ]
         }
     },
-    "postCreateCommand": "code --install-extension /home/vscode/wpilib/vscode-wpilib.vsix",
+    "postCreateCommand": "code --install-extension /home/vscode/.local/share/wpilib/.current/vsCodeExtensions/vscode-wpilib-*.vsix",
     "remoteUser": "vscode",
     "features": {
         "ghcr.io/stuartleeks/dev-container-features/shell-history:0": {}
