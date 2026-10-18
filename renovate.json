@@ -19,7 +19,7 @@
       "depNameTemplate": "wpilibsuite/WPILibInstaller-Avalonia",
       "datasourceTemplate": "github-tags",
       "extractVersionTemplate": "^v(?<version>.+)$",
-      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:-(?<prerelease>[a-z]+)-(?<build>\\d+))?$"
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:-(?<prerelease>[a-z]+-\\d+))?$"
     }
   ],
   "packageRules": [
