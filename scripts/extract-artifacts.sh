@@ -6,7 +6,7 @@ set -euo pipefail
 root="${1:?usage: extract-artifacts.sh INSTALL_ROOT}"
 staging="$root/.staging"
 
-KEEP=(jdk systemcore vsCodeExtensions wpilibcode vendordeps documentation tools/tools.json installUtils)
+KEEP=(jdk systemcore vsCodeExtensions vendordeps tools/tools.json installUtils)
 
 cleanup_on_failure() { rm -rf "$staging"; }
 trap 'cleanup_on_failure' ERR
