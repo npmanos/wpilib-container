@@ -12,7 +12,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install core dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
     git \
@@ -54,6 +54,7 @@ FROM base AS java
 USER vscode
 WORKDIR /home/vscode
 
+RUN mkdir -p "$HOME/.local/share"
 COPY --from=fetch --chown=vscode:vscode /home/vscode/.local/share/wpilib/ /home/vscode/.local/share/wpilib/
 COPY --from=fetch --chown=vscode:vscode /home/vscode/.gradle/ /home/vscode/.gradle/
 

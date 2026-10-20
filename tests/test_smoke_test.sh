@@ -20,6 +20,7 @@ import sys, zipfile
 with zipfile.ZipFile(sys.argv[1], "w") as z:
     z.writestr("extension/resources/gradle/shared/gradlew", "#!/bin/sh\nexit %s\n" % sys.argv[2])
 PY
+  mkdir -p "$H/.local/share"
   ln -sfn 2027_alpha7 "$R/.current"
   if [[ "$variant" == full ]]; then
     mkdir -p "$y/systemcore/bin"
@@ -64,6 +65,11 @@ for v in java full; do
   make_tree $v; rm -r "$GH/permwrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj"
   assert_fails "$v: unpacked dist dir missing" run_smoke $v "$R"
   make_tree $v 1; assert_fails "$v: gradlew exits 1" run_smoke $v "$R"
+  make_tree $v; rm -r "$GH/permwrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj/gradle-9.4.1"
+  assert_fails "$v: unpacked gradle dir missing (marker present)" run_smoke $v "$R"
+  make_tree $v; mkdir -p "$H/.local/share"; chmod a-w "$H/.local/share"
+  assert_fails "$v: ~/.local/share not writable" run_smoke $v "$R"
+  chmod u+w "$H/.local/share"
 done
 
 make_tree full; printf '#!/bin/sh\nexit 1\n' > "$R/.current/systemcore/bin/arm64-g++"; assert_fails "full: compiler exits 1" run_smoke full "$R"

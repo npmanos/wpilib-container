@@ -74,7 +74,12 @@ check_gradle_layout() {
   dir="$gradle_home/permwrapper/dists/${zip%.zip}/$hash"
   [[ -d "$dir" ]] || { fail "Gradle distribution dir missing ($dir)"; return; }
   [[ -f "$dir/$zip.ok" ]] || fail "Gradle .ok marker missing ($dir/$zip.ok)"
-  [[ -n "$(ls "$dir")" ]] || fail "Gradle distribution dir is empty ($dir)"
+  compgen -G "$dir/*/" >/dev/null || fail "unpacked Gradle distribution missing in $dir"
+}
+
+# COPY in the Dockerfile must not leave the parents of the install root owned by root.
+check_local_share_writable() {
+  [[ -w "$HOME/.local/share" ]] || fail "$HOME/.local/share is not writable"
 }
 
 # Runs the wrapper script shipped in the WPILib extension. It must resolve Gradle from the
@@ -125,6 +130,7 @@ check_no_maven
 check_removed
 check_gradle_layout
 check_gradle_wrapper
+check_local_share_writable
 if [[ "$variant" == full ]]; then
   check_compiler
   check_cpptools_vsix present
