@@ -116,7 +116,7 @@ check_no_systemcore() {
 
 check_no_native_tools() {
   local t
-  for t in cmake gdb g++; do
+  for t in cmake gdb; do
     if command -v "$t" >/dev/null 2>&1; then fail "$t must not be installed in the java variant"; fi
   done
 }

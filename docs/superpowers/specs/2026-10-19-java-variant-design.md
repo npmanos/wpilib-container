@@ -170,7 +170,7 @@ Both variants:
 
 - `.current/systemcore` does not exist.
 - The C++ extension `.vsix` named in `vscodeConfig.json` does not exist.
-- `cmake`, `gdb` and `g++` are not on `PATH`. If the first CI run shows that the base image provides `g++`, this check drops `g++`.
+- `cmake` and `gdb` are not on `PATH`. (The base image ships `g++` as part of `build-essential`, confirmed by the first CI run, so `g++` is not checked.)
 
 ### Script tests (`tests/`, no Docker)
 
@@ -190,5 +190,5 @@ Both variants:
 
 - The Gradle wrapper treats a distribution as installed when `<zip>.ok` exists next to the unpacked directory. This is inferred from the layout the wrapper writes. The smoke test's wrapper check verifies it.
 - `COPY --from` keeps the `.current` symlink when copying the directory. The smoke test's `.current` check verifies it.
-- The devcontainer base image does not provide `cmake`, `gdb` or `g++`. The `java` smoke test verifies it.
+- The devcontainer base image does not provide `cmake` or `gdb`. The `java` smoke test verifies it. It does provide `gcc`, `g++` and `make`; purging them would not shrink the image.
 - Builds still need network access for WPILib libraries and the GradleRIO plugin (published on the Gradle Plugin Portal), as today.

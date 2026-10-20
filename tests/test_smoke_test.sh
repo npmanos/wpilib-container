@@ -77,10 +77,15 @@ make_tree full; rm "$R/.current/vsCodeExtensions/cpptools-linux-x64.vsix"; asser
 
 make_tree java; mkdir -p "$R/.current/systemcore"; assert_fails "java: systemcore present" run_smoke java "$R"
 make_tree java; : > "$R/.current/vsCodeExtensions/cpptools-linux-x64.vsix"; assert_fails "java: cpptools vsix present" run_smoke java "$R"
-for t in cmake gdb g++; do
+for t in cmake gdb; do
   make_tree java; EXTRA_PATH="$(fake_tool $t)"
   assert_fails "java: $t on PATH" run_smoke java "$R"
   EXTRA_PATH=""
 done
+
+# The devcontainer base image ships g++ (build-essential), so it is not a java-variant failure.
+make_tree java; EXTRA_PATH="$(fake_tool g++)"
+assert_ok "java: g++ on PATH is allowed" run_smoke java "$R"
+EXTRA_PATH=""
 
 finish

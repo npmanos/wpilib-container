@@ -16,7 +16,7 @@ A pre-configured Development Container for FRC robot code development. The image
 | Variant | Tags          | Contents |
 | :----   | :----         | :----    |
 | full    | no suffix     | Everything above, plus the systemcore cross-compiler (on `PATH`), `build-essential`, `cmake`, `gdb` and the C/C++ VS Code extension (`.vsix`). Use it for C++ or mixed projects. |
-| java    | `-java` suffix | The WPILib JDK, Gradle, the WPILib and Java VS Code extensions, `vendordeps` and `tools.json`. No C++ toolchain, so it is much smaller. |
+| java    | `-java` suffix | The WPILib JDK, Gradle, the WPILib and Java VS Code extensions, `vendordeps` and `tools.json`. No systemcore cross-compiler, `cmake` or `gdb`, so it is much smaller. (The base image's own `gcc`/`g++` remain.) |
 
 ## Install layout
 
