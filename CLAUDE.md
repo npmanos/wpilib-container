@@ -39,4 +39,7 @@ Whether a merge made by Renovate triggers `docker-publish`; the first `wpilib.ve
 
 ## TODO (deferred review findings)
 
+- `docker-publish.yml`: the `merge` matrix jobs are independent, so one variant can be published while the other's merge fails; re-run the failed job.
+- `docker-publish.yml`: a `workflow_dispatch` from another branch can cancel a queued `develop` run (a concurrency group keeps one pending run). Consider `github.ref` in the group name.
+- `Dockerfile`: `ARG WPILIB_VERSION` sits above the apt `RUN` in `base`, so that layer may rebuild on every version bump. Move the `ARG` and `LABEL` below the `RUN`.
 - Decide whether Actions pin bumps should automerge. The Renovate rule only matches the `wpilib.version` manager.
