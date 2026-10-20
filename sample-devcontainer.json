@@ -1,6 +1,6 @@
 {
     "name": "WPILib 2027",
-    "image": "ghcr.io/npmanos/devcontainer_wpilib:2027.0.0-alpha-7",
+    "image": "ghcr.io/npmanos/devcontainer-wpilib:2027.0.0-alpha-7",
     "customizations": {
         "vscode": {
             "settings": {

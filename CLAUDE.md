@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A Docker image (published to `ghcr.io/npmanos/devcontainer_wpilib`) used as a VS Code Dev Container / Codespaces base for FRC robot code. It contains a subset of WPILib's official install (JDK, systemcore toolchain, the WPILib VS Code `.vsix`, and a few support directories), extracted from the installer bundle. Only the current WPILib release is built; already-published images are not touched.
+A Docker image (published to `ghcr.io/npmanos/devcontainer-wpilib`, and also to the old name `ghcr.io/npmanos/devcontainer_wpilib` for backwards compatibility) used as a VS Code Dev Container / Codespaces base for FRC robot code. It contains a subset of WPILib's official install (JDK, systemcore toolchain, the WPILib VS Code `.vsix`, and a few support directories), extracted from the installer bundle. Only the current WPILib release is built; already-published images are not touched.
 
 ## Commands
 

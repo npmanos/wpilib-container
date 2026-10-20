@@ -33,7 +33,7 @@ Add a [.devcontainer/devcontainer.json](sample-devcontainer.json) file to your r
 ```json
 {
     "name": "WPILib 2027",
-    "image": "ghcr.io/npmanos/devcontainer_wpilib:2027.0.0-alpha-7",
+    "image": "ghcr.io/npmanos/devcontainer-wpilib:2027.0.0-alpha-7",
     "customizations": {
         "vscode": {
             "settings": {
@@ -64,7 +64,7 @@ Add a [.devcontainer/devcontainer.json](sample-devcontainer.json) file to your r
 }
 ```
 
-To use the Java variant, make two changes: add `-java` to the image tag (for example `ghcr.io/npmanos/devcontainer_wpilib:2027.0.0-alpha-7-java`) and remove `ms-vscode.cpptools-extension-pack` from `extensions`.
+To use the Java variant, make two changes: add `-java` to the image tag (for example `ghcr.io/npmanos/devcontainer-wpilib:2027.0.0-alpha-7-java`) and remove `ms-vscode.cpptools-extension-pack` from `extensions`.
 
 ### Gradle Setup
 
@@ -76,11 +76,13 @@ Images are published to the GitHub Container Registry (ghcr.io).
 
 | Tag     | Description                                                                 | Example                                              |
 | :----   | :----                                                                       | :----                                                |
-| VERSION | A specific WPILib version. Always published.                                | ghcr.io/npmanos/devcontainer_wpilib:2027.0.0-alpha-7 |
-| MAJOR   | The latest stable build for a season. Not moved by alpha, beta or rc builds. | ghcr.io/npmanos/devcontainer_wpilib:2027             |
-| latest  | The most recent stable build. Not moved by pre-releases.                    | ghcr.io/npmanos/devcontainer_wpilib:latest           |
+| VERSION | A specific WPILib version. Always published.                                | ghcr.io/npmanos/devcontainer-wpilib:2027.0.0-alpha-7 |
+| MAJOR   | The latest stable build for a season. Not moved by alpha, beta or rc builds. | ghcr.io/npmanos/devcontainer-wpilib:2027             |
+| latest  | The most recent stable build. Not moved by pre-releases.                    | ghcr.io/npmanos/devcontainer-wpilib:latest           |
 
 Add `-java` to any of these for the Java variant: `2027.0.0-alpha-7-java`, `2027-java`, `latest-java`.
+
+The old name `ghcr.io/npmanos/devcontainer_wpilib` receives the same tags and keeps working.
 
 Images published before the 2027 season used other tags (for example `2026`) and are unchanged.
 

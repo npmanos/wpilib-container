@@ -19,6 +19,9 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: npmanos/devcontainer_wpilib
+  # Preferred name. The images are built and pushed by digest under IMAGE_NAME; the manifests are
+  # tagged under both names. IMAGE_NAME stays published for backwards compatibility.
+  IMAGE_NAME_ALIAS: npmanos/devcontainer-wpilib
 
 jobs:
   build:
@@ -171,7 +174,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ALIAS }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           flavor: latest=false
           tags: |
             type=raw,value=${{ steps.version.outputs.version }}${{ matrix.suffix }}
