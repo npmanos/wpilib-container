@@ -2,20 +2,19 @@
 source "$(dirname "$0")/lib.sh"
 SCRIPT="$(cd "$(dirname "$0")/.." && pwd)/scripts/extract-artifacts.sh"
 
-KEEP=(jdk/x systemcore/x vsCodeExtensions/x wpilibcode/x vendordeps/x documentation/x tools/tools.json)
+KEEP=(jdk/x systemcore/x vsCodeExtensions/x vendordeps/x tools/tools.json)
 
 # make_artifacts OUT YEAR [OMIT_PATH...]
 make_artifacts() {
   local out="$1" year="$2"; shift 2
   local dir; dir="$(mktemp -d -p "$TMP")"
   local p
-  for p in "${KEEP[@]}" maven/x advantagescope/x elastic/x icons/x tools/artifacts/Glass.zip; do
+  for p in "${KEEP[@]}" maven/x wpilibcode/x documentation/x advantagescope/x elastic/x icons/x tools/artifacts/Glass.zip; do
     mkdir -p "$dir/$(dirname "$p")"; echo data > "$dir/$p"
   done
   mkdir -p "$dir/installUtils"
   printf '{"WpilibYear": "%s"}\n' "$year" > "$dir/installUtils/upgradeConfig.json"
   local o; for o in "$@"; do rm -f "$dir/$o"; done
-  tar -czf "$out" -C "$dir" .
   # members must not carry ./ (real tarball has none)
   tar -czf "$out" -C "$dir" $(cd "$dir" && find . -type f | sed 's|^\./||')
 }
@@ -32,6 +31,8 @@ assert_ok "tools.json kept" test -f "$Y/tools/tools.json"
 assert_ok "jdk kept" test -f "$Y/jdk/x"
 assert_ok "upgradeConfig kept" test -f "$Y/installUtils/upgradeConfig.json"
 assert_fails "maven dropped" test -e "$Y/maven"
+assert_fails "wpilibcode dropped" test -e "$Y/wpilibcode"
+assert_fails "documentation dropped" test -e "$Y/documentation"
 assert_fails "advantagescope dropped" test -e "$Y/advantagescope"
 assert_fails "tools/artifacts dropped" test -e "$Y/tools/artifacts"
 assert_fails ".staging gone" test -e "$R/.staging"

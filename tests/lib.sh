@@ -35,6 +35,17 @@ assert_fails() {
   fi
 }
 
+# minimal_path DIR: create DIR holding symlinks to the only external commands smoke-test.sh may use
+# and print DIR. Putting it alone on PATH hides any cmake, gdb or g++ on the machine running the tests.
+minimal_path() {
+  local dir="$1" c
+  mkdir -p "$dir"
+  for c in bash sh python3 unzip mktemp rm realpath readlink dirname basename head cat ls; do
+    ln -sf "$(command -v "$c")" "$dir/$c"
+  done
+  echo "$dir"
+}
+
 finish() {
   if ((FAILURES > 0)); then
     echo "$FAILURES assertion(s) failed"
