@@ -6,7 +6,7 @@ A pre-configured Development Container for FRC robot code development. The image
 
 * **Base OS:** Ubuntu 24.04 (via Microsoft Dev Containers base)
 * **Java:** the WPILib JDK
-* **Compiler:** the WPILib systemcore cross-compiler toolchain
+* **Compiler (full variant only):** the WPILib systemcore cross-compiler toolchain
 * **IDE Support:** the WPILib VS Code extension (`.vsix`, installed by your `postCreateCommand`)
 * **Gradle:** the Gradle distribution that WPILib projects use is pre-installed under `~/.gradle/permwrapper/dists`, so the first build does not download it.
 * **Also included:** `vendordeps` and `tools/tools.json` from the WPILib install. The Maven repository, documentation, AdvantageScope, Elastic, icons and the tool binaries are not included.
@@ -68,7 +68,7 @@ To use the Java variant, make two changes: add `-java` to the image tag (for exa
 
 ### Gradle Setup
 
-The container includes the necessary compilers. Your build.gradle should function normally, as the JAVA_HOME environment variable is set globally within the container to point to the correct JDK.
+The `full` variant includes the necessary compilers. Your build.gradle should function normally, as the JAVA_HOME environment variable is set globally within the container to point to the correct JDK.
 
 ## Container Tags
 
