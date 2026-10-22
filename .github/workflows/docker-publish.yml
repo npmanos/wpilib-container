@@ -9,6 +9,20 @@ on:
       - 'scripts/**'
       - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
+    inputs:
+      wpilib_version:
+        description: WPILib version to build (empty to use wpilib.version)
+        type: string
+        required: false
+        default: ''
+      moving_tags:
+        description: Moving tags to update (only applies to stable versions, on develop)
+        type: choice
+        options:
+          - none
+          - major
+          - major-and-latest
+        default: none
 
 # One publish at a time, in arrival order, so an older run cannot move latest or the major tag
 # after a newer one.
@@ -46,8 +60,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Read WPILib version
-        run: echo "WPILIB_VERSION=$(cat wpilib.version)" >> "$GITHUB_ENV"
+      - name: Resolve WPILib version
+        env:
+          INPUT_VERSION: ${{ inputs.wpilib_version }}
+        run: |
+          version="${INPUT_VERSION:-$(cat wpilib.version)}"
+          bash scripts/version-info.sh "$version" > /dev/null
+          echo "WPILIB_VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -155,8 +174,10 @@ jobs:
 
       - name: Classify version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.wpilib_version }}
         run: |
-          version="$(cat wpilib.version)"
+          version="${INPUT_VERSION:-$(cat wpilib.version)}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           bash scripts/version-info.sh "$version" >> "$GITHUB_OUTPUT"
 
@@ -170,6 +191,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Pushes to develop move the major and latest tags for stable versions. A dispatch moves them
+      # only as chosen in moving_tags, and never from a branch other than develop.
       - name: Compute tags
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -180,8 +203,8 @@ jobs:
           flavor: latest=false
           tags: |
             type=raw,value=${{ steps.version.outputs.version }}${{ matrix.suffix }}
-            type=raw,value=${{ steps.version.outputs.major }}${{ matrix.suffix }},enable=${{ steps.version.outputs.stable == 'true' && github.ref == 'refs/heads/develop' }}
-            type=raw,value=latest${{ matrix.suffix }},enable=${{ steps.version.outputs.stable == 'true' && github.ref == 'refs/heads/develop' }}
+            type=raw,value=${{ steps.version.outputs.major }}${{ matrix.suffix }},enable=${{ steps.version.outputs.stable == 'true' && github.ref == 'refs/heads/develop' && (github.event_name != 'workflow_dispatch' || inputs.moving_tags != 'none') }}
+            type=raw,value=latest${{ matrix.suffix }},enable=${{ steps.version.outputs.stable == 'true' && github.ref == 'refs/heads/develop' && (github.event_name != 'workflow_dispatch' || inputs.moving_tags == 'major-and-latest') }}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
