@@ -13,6 +13,8 @@ make_install() {
   ln -s 2027_alpha7 "$root/.current"
   printf '{"thirdPartyExtensions": [{"name": "redhat.java", "vsix": "vscode-java-1.55.0-995.vsix"}, {"name": "ms-vscode.cpptools", "vsix": "%s"}]}\n' \
     "$vsix" > "$y/installUtils/vscodeConfig.json"
+  # no CppToolchain key: the toolchain falls back to systemcore
+  printf '{"Gradle": {"ZipName": "gradle-9.0-bin.zip", "Hash": "abc123"}}\n' > "$y/installUtils/fullConfig.json"
 }
 
 run() { bash "$SCRIPT" "$1" "$2"; }
@@ -73,5 +75,57 @@ assert_fails "dangling .current" run "$R" "$TMP/o6"
 
 # arg count
 assert_fails "wrong arg count" bash "$SCRIPT" "$TMP/r1"
+
+# fullConfig.json missing
+R="$TMP/r9"; O="$TMP/o9"; mkdir -p "$R"; make_install "$R"
+rm "$R/2027_alpha7/installUtils/fullConfig.json"
+assert_fails "fullConfig.json missing" run "$R" "$O"
+assert_untouched "fullConfig.json missing" "$R" "$O"
+
+# 2024-2026: roborio toolchain named by fullConfig.json, FrcYear-style year dir, '@' in the vsix name
+make_legacy() {
+  local root="$1" tc="$2" vsix="$3" y="$1/2025"
+  mkdir -p "$y/$tc/bin" "$y/vsCodeExtensions" "$y/installUtils"
+  echo stub > "$y/$tc/bin/arm-nilrt-linux-gnueabi-g++"
+  local f; for f in vscode-wpilib-2025.3.2.vsix redhat.java-1.38.0.vsix "$vsix"; do
+    echo stub > "$y/vsCodeExtensions/$f"
+  done
+  ln -s 2025 "$root/.current"
+  printf '{"thirdPartyExtensions": [{"name": "redhat.java", "vsix": "redhat.java-1.38.0.vsix"}, {"name": "ms-vscode.cpptools", "vsix": "%s"}]}\n' \
+    "$vsix" > "$y/installUtils/vscodeConfig.json"
+  printf '{"Gradle": {"ZipName": "gradle-8.11-bin.zip", "Hash": "c4te04g51qsyw1bxcb929u7br"}, "CppToolchain": {"Version": "12.1.0", "Directory": "%s"}}\n' \
+    "$tc" > "$y/installUtils/fullConfig.json"
+}
+
+AT=ms-vscode.cpptools-1.23.2@linux-arm64.vsix
+R="$TMP/r10"; O="$TMP/o10"; mkdir -p "$R"; make_legacy "$R" roborio "$AT"
+assert_ok "roborio + '@' vsix splits" run "$R" "$O"
+assert_ok "roborio moved" test -f "$O/2025/roborio/bin/arm-nilrt-linux-gnueabi-g++"
+assert_ok "'@' vsix moved" test -f "$O/2025/vsCodeExtensions/$AT"
+assert_fails "roborio gone from install" test -e "$R/2025/roborio"
+assert_ok "wpilib vsix stays (legacy)" test -f "$R/2025/vsCodeExtensions/vscode-wpilib-2025.3.2.vsix"
+assert_ok "java vsix stays (legacy)" test -f "$R/2025/vsCodeExtensions/redhat.java-1.38.0.vsix"
+
+# fullConfig names roborio but the directory is absent
+R="$TMP/r11"; O="$TMP/o11"; mkdir -p "$R"; make_legacy "$R" roborio "$AT"
+rm -r "$R/2025/roborio"
+assert_fails "roborio missing" run "$R" "$O"
+assert_ok "roborio missing: cpptools stays" test -f "$R/2025/vsCodeExtensions/$AT"
+assert_fails "roborio missing: nothing in out" test -e "$O/2025"
+
+# a toolchain name that is not a plain directory name
+for t in ../evil .hidden 'a/b'; do
+  R="$TMP/r12"; O="$TMP/o12"; rm -rf "$R" "$O"; mkdir -p "$R"; make_legacy "$R" systemcore "$AT"
+  printf '{"CppToolchain": {"Directory": "%s"}}\n' "$t" > "$R/2025/installUtils/fullConfig.json"
+  assert_fails "toolchain '$t' refused" run "$R" "$O"
+  assert_ok "toolchain '$t': cpptools stays" test -f "$R/2025/vsCodeExtensions/$AT"
+done
+
+# other characters in a vsix name are still refused
+for v in 'x y.vsix' '../x.vsix' '@x.vsix' 'a;b.vsix'; do
+  R="$TMP/r13"; O="$TMP/o13"; rm -rf "$R" "$O"; mkdir -p "$R"; make_legacy "$R" roborio "$AT"
+  printf '{"thirdPartyExtensions": [{"name": "ms-vscode.cpptools", "vsix": "%s"}]}\n' "$v" > "$R/2025/installUtils/vscodeConfig.json"
+  assert_fails "vsix name '$v' refused" run "$R" "$O"
+done
 
 finish

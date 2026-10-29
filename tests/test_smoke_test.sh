@@ -3,16 +3,22 @@ source "$(dirname "$0")/lib.sh"
 SCRIPT="$(cd "$(dirname "$0")/.." && pwd)/scripts/smoke-test.sh"
 MINPATH="$(minimal_path "$TMP/minpath")"
 
-# make_tree VARIANT [GRADLEW_EXIT]: sets H (fixture dir), R (install root), GH (Gradle user home)
+# make_tree VARIANT [GRADLEW_EXIT]: sets H (fixture dir), R (install root), GH (Gradle user home).
+# The cross-compiler directory is systemcore with no CppToolchain key in fullConfig.json (2027);
+# TOOLCHAIN=roborio names it in fullConfig.json as the 2024-2026 bundles do.
 make_tree() {
-  local variant="$1" gradlew_exit="${2:-0}"
+  local variant="$1" gradlew_exit="${2:-0}" tc="${TOOLCHAIN:-systemcore}"
   H="$(mktemp -d -p "$TMP")"; R="$H/wpilib"; GH="$H/gradle"
   local y="$R/2027_alpha7" d="$GH/permwrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj"
   mkdir -p "$y/jdk/bin" "$y/vsCodeExtensions" "$y/tools" "$y/installUtils" "$d/gradle-9.4.1"
   printf '#!/bin/sh\necho "openjdk version 25" >&2\n' > "$y/jdk/bin/java"
   chmod +x "$y/jdk/bin/java"
   echo '[]' > "$y/tools/tools.json"
-  printf '{"Gradle": {"Hash": "arn2x92ynaizyzdaamcbpbhtj", "ZipName": "gradle-9.4.1-bin.zip"}}\n' > "$y/installUtils/fullConfig.json"
+  if [[ -n "${TOOLCHAIN:-}" ]]; then
+    printf '{"Gradle": {"Hash": "arn2x92ynaizyzdaamcbpbhtj", "ZipName": "gradle-9.4.1-bin.zip"}, "CppToolchain": {"Version": "12.1.0", "Directory": "%s"}}\n' "$tc" > "$y/installUtils/fullConfig.json"
+  else
+    printf '{"Gradle": {"Hash": "arn2x92ynaizyzdaamcbpbhtj", "ZipName": "gradle-9.4.1-bin.zip"}}\n' > "$y/installUtils/fullConfig.json"
+  fi
   printf '{"thirdPartyExtensions": [{"name": "ms-vscode.cpptools", "vsix": "cpptools-linux-x64.vsix"}]}\n' > "$y/installUtils/vscodeConfig.json"
   : > "$d/gradle-9.4.1-bin.zip.ok"
   python3 - "$y/vsCodeExtensions/vscode-wpilib-2027.0.0-alpha-7.vsix" "$gradlew_exit" <<'PY'
@@ -23,9 +29,9 @@ PY
   mkdir -p "$H/.local/share"
   ln -sfn 2027_alpha7 "$R/.current"
   if [[ "$variant" == full ]]; then
-    mkdir -p "$y/systemcore/bin"
-    printf '#!/bin/sh\nexit 0\n' > "$y/systemcore/bin/arm64-g++"
-    chmod +x "$y/systemcore/bin/arm64-g++"
+    mkdir -p "$y/$tc/bin"
+    printf '#!/bin/sh\nexit 0\n' > "$y/$tc/bin/arm64-g++"
+    chmod +x "$y/$tc/bin/arm64-g++"
     : > "$y/vsCodeExtensions/cpptools-linux-x64.vsix"
   fi
 }
@@ -81,6 +87,23 @@ for t in cmake gdb; do
   make_tree java; EXTRA_PATH="$(fake_tool $t)"
   assert_fails "java: $t on PATH" run_smoke java "$R"
   EXTRA_PATH=""
+done
+
+# 2024-2026: the toolchain is roborio, named by fullConfig.json
+TOOLCHAIN=roborio make_tree full; assert_ok "roborio full: good tree passes" run_smoke full "$R"
+TOOLCHAIN=roborio make_tree java; assert_ok "roborio java: good tree passes" run_smoke java "$R"
+TOOLCHAIN=roborio make_tree full; rm -r "$R/.current/roborio"; assert_fails "roborio full: toolchain missing" run_smoke full "$R"
+TOOLCHAIN=roborio make_tree full; printf '#!/bin/sh\nexit 1\n' > "$R/.current/roborio/bin/arm64-g++"
+assert_fails "roborio full: compiler exits 1" run_smoke full "$R"
+TOOLCHAIN=roborio make_tree java; mkdir -p "$R/.current/roborio"; assert_fails "roborio java: roborio present" run_smoke java "$R"
+# a systemcore directory is not the toolchain when fullConfig.json says roborio
+TOOLCHAIN=roborio make_tree full; mv "$R/.current/roborio" "$R/.current/systemcore"
+assert_fails "roborio full: only systemcore present" run_smoke full "$R"
+# a toolchain name that is not a plain directory name
+for t in ../evil .hidden 'a/b'; do
+  TOOLCHAIN=roborio make_tree full
+  printf '{"Gradle": {"Hash": "arn2x92ynaizyzdaamcbpbhtj", "ZipName": "gradle-9.4.1-bin.zip"}, "CppToolchain": {"Directory": "%s"}}\n' "$t" > "$R/.current/installUtils/fullConfig.json"
+  assert_fails "toolchain '$t' refused" run_smoke full "$R"
 done
 
 # The devcontainer base image ships g++ (build-essential), so it is not a java-variant failure.
