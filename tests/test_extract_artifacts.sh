@@ -5,21 +5,24 @@ SCRIPT="$(cd "$(dirname "$0")/.." && pwd)/scripts/extract-artifacts.sh"
 KEEP=(jdk/x systemcore/x vsCodeExtensions/x vendordeps/x tools/tools.json)
 
 # make_artifacts OUT YEAR [OMIT_PATH...]
+# YEAR is the upgradeConfig.json value; the key is WpilibYear unless YEAR_KEY is set (2024-2026
+# bundles use FrcYear) and the toolchain directory is systemcore unless TOOLCHAIN is set (roborio
+# before 2027).
 make_artifacts() {
   local out="$1" year="$2"; shift 2
   local dir; dir="$(mktemp -d -p "$TMP")"
-  local p
-  for p in "${KEEP[@]}" maven/x wpilibcode/x documentation/x advantagescope/x elastic/x icons/x tools/artifacts/Glass.zip; do
+  local p tc="${TOOLCHAIN:-systemcore}"
+  for p in "${KEEP[@]/systemcore/$tc}" maven/x wpilibcode/x documentation/x advantagescope/x elastic/x icons/x tools/artifacts/Glass.zip; do
     mkdir -p "$dir/$(dirname "$p")"; echo data > "$dir/$p"
   done
   mkdir -p "$dir/installUtils"
-  printf '{"WpilibYear": "%s"}\n' "$year" > "$dir/installUtils/upgradeConfig.json"
+  printf '{"%s": "%s"}\n' "${YEAR_KEY:-WpilibYear}" "$year" > "$dir/installUtils/upgradeConfig.json"
   local o; for o in "$@"; do rm -f "$dir/$o"; done
   # members must not carry ./ (real tarball has none)
   tar -czf "$out" -C "$dir" $(cd "$dir" && find . -type f | sed 's|^\./||')
 }
 
-run() { bash "$SCRIPT" "$1" < "$2"; }
+run() { bash "$SCRIPT" "$1" ${3:+"$3"} < "$2"; }
 
 # good fixture
 make_artifacts "$TMP/good.tgz" 2027_alpha7
@@ -63,6 +66,37 @@ for y in ../evil .hidden; do
   assert_fails "year '$y' rejected" run "$R" "$TMP/bad.tgz"
   assert_fails "no evil dir for '$y'" test -e "$TMP/evil"
   assert_eq "" "$(ls -A "$R")" "nothing left behind for '$y'"
+done
+
+# 2024-2026 bundles: FrcYear key, roborio toolchain passed by the caller
+YEAR_KEY=FrcYear TOOLCHAIN=roborio make_artifacts "$TMP/legacy.tgz" 2026
+R="$TMP/r6"; mkdir -p "$R"
+assert_ok "FrcYear + roborio extracts" run "$R" "$TMP/legacy.tgz" roborio
+assert_eq 2026 "$(readlink "$R/.current")" "FrcYear names the year dir"
+assert_ok "roborio kept" test -f "$R/2026/roborio/x"
+assert_fails "systemcore absent" test -e "$R/2026/systemcore"
+assert_ok "jdk kept (legacy)" test -f "$R/2026/jdk/x"
+assert_fails "legacy: maven dropped" test -e "$R/2026/maven"
+
+# asking for the wrong toolchain fails and leaves nothing behind
+R="$TMP/r7"; mkdir -p "$R"
+assert_fails "roborio bundle, default systemcore" run "$R" "$TMP/legacy.tgz"
+assert_eq "" "$(ls -A "$R")" "nothing left behind after toolchain mismatch"
+R="$TMP/r8"; mkdir -p "$R"
+assert_fails "systemcore bundle, roborio requested" run "$R" "$TMP/good.tgz" roborio
+assert_eq "" "$(ls -A "$R")" "nothing left behind after reverse mismatch"
+
+# neither year key
+YEAR_KEY=Bogus make_artifacts "$TMP/nokey.tgz" 2026
+R="$TMP/r9"; mkdir -p "$R"
+assert_fails "no year key fails" run "$R" "$TMP/nokey.tgz"
+assert_eq "" "$(ls -A "$R")" "nothing left behind without a year key"
+
+# bad toolchain names are refused before extracting
+for t in ../evil .hidden 'a b' tools/tools.json; do
+  R="$TMP/r10"; rm -rf "$R"; mkdir -p "$R"
+  assert_fails "toolchain '$t' rejected" run "$R" "$TMP/good.tgz" "$t"
+  assert_eq "" "$(ls -A "$R")" "nothing left behind for toolchain '$t'"
 done
 
 finish

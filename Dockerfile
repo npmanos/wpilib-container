@@ -31,20 +31,19 @@ ARG TARGETARCH
 USER vscode
 WORKDIR /home/vscode
 
-# Stream the installer bundle, pull out its artifacts tarball, and extract only the keep list
-# into ~/.local/share/wpilib/<WpilibYear> (scripts/extract-artifacts.sh). Then pre-install the
-# Gradle distribution (scripts/install-gradle.sh) and move the C++ parts aside for the full
-# image (scripts/split-cpp.sh).
+# Look up the installer URL and cross-compiler directory for this season and architecture
+# (scripts/installer-info.sh), stream the installer bundle, pull out its artifacts tarball, and
+# extract only the keep list into ~/.local/share/wpilib/<year> (scripts/extract-artifacts.sh). Then
+# pre-install the Gradle distribution (scripts/install-gradle.sh) and move the C++ parts aside for
+# the full image (scripts/split-cpp.sh). The info is captured before eval so that a failure stops
+# the chain: eval of a failed command substitution would succeed.
 RUN --mount=type=bind,source=scripts,target=/tmp/scripts \
-    case "${TARGETARCH}" in \
-        amd64) ARCH=x64 ;; \
-        arm64) ARCH=Arm64 ;; \
-        *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac \
+    info="$(bash /tmp/scripts/installer-info.sh "${WPILIB_VERSION}" "${TARGETARCH}")" \
+    && eval "$info" \
     && mkdir -p "$HOME/.local/share/wpilib" \
-    && curl -fsSL "https://packages.wpilib.workers.dev/installer/v${WPILIB_VERSION}/WPILib_Linux-${ARCH}-${WPILIB_VERSION}.tar.gz" \
+    && curl -fsSL "$url" \
         | tar -xzO --wildcards '*-artifacts.tar.gz' \
-        | bash /tmp/scripts/extract-artifacts.sh "$HOME/.local/share/wpilib" \
+        | bash /tmp/scripts/extract-artifacts.sh "$HOME/.local/share/wpilib" "$toolchain" \
     && bash /tmp/scripts/install-gradle.sh "$HOME/.local/share/wpilib" "$HOME/.gradle" \
     && bash /tmp/scripts/split-cpp.sh "$HOME/.local/share/wpilib" "$HOME/.wpilib-cpp"
 
@@ -77,4 +76,5 @@ RUN apt-get update && apt-get install -y \
 USER vscode
 COPY --from=fetch --chown=vscode:vscode /home/vscode/.wpilib-cpp/ /home/vscode/.local/share/wpilib/
 
-ENV PATH=$PATH:/home/vscode/.local/share/wpilib/.current/systemcore/bin
+# The cross-compiler is .current/systemcore (2027+) or .current/roborio (2024-2026); only one exists.
+ENV PATH=$PATH:/home/vscode/.local/share/wpilib/.current/systemcore/bin:/home/vscode/.local/share/wpilib/.current/roborio/bin

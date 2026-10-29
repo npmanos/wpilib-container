@@ -6,7 +6,7 @@ A pre-configured Development Container for FRC robot code development. The image
 
 * **Base OS:** Ubuntu 24.04 (via Microsoft Dev Containers base)
 * **Java:** the WPILib JDK
-* **Compiler (full variant only):** the WPILib systemcore cross-compiler toolchain
+* **Compiler (full variant only):** the WPILib cross-compiler toolchain (`systemcore` from 2027, `roborio` for 2024 to 2026)
 * **IDE Support:** the WPILib VS Code extension (`.vsix`, installed by your `postCreateCommand`)
 * **Gradle:** the Gradle distribution that WPILib projects use is pre-installed under `~/.gradle/permwrapper/dists`, so the first build does not download it.
 * **Also included:** `vendordeps` and `tools/tools.json` from the WPILib install. The Maven repository, documentation, AdvantageScope, Elastic, icons and the tool binaries are not included.
@@ -15,12 +15,12 @@ A pre-configured Development Container for FRC robot code development. The image
 
 | Variant | Tags          | Contents |
 | :----   | :----         | :----    |
-| full    | no suffix     | Everything above, plus the systemcore cross-compiler (on `PATH`), `build-essential`, `cmake`, `gdb` and the C/C++ VS Code extension (`.vsix`). Use it for C++ or mixed projects. |
-| java    | `-java` suffix | The WPILib JDK, Gradle, the WPILib and Java VS Code extensions, `vendordeps` and `tools.json`. No systemcore cross-compiler, `cmake` or `gdb`, so it is much smaller. (The base image's own `gcc`/`g++` remain.) |
+| full    | no suffix     | Everything above, plus the cross-compiler (on `PATH`), `build-essential`, `cmake`, `gdb` and the C/C++ VS Code extension (`.vsix`). Use it for C++ or mixed projects. |
+| java    | `-java` suffix | The WPILib JDK, Gradle, the WPILib and Java VS Code extensions, `vendordeps` and `tools.json`. No cross-compiler, `cmake` or `gdb`, so it is much smaller. (The base image's own `gcc`/`g++` remain.) |
 
 ## Install layout
 
-WPILib is installed under `/home/vscode/.local/share/wpilib/<WpilibYear>/`, the installer's default location. `<WpilibYear>` is the directory name the installer uses for that release (for example `2027_alpha7` for an alpha). Because that name varies between releases, `/home/vscode/.local/share/wpilib/.current` is a symlink to it. Use `.current` in paths. `JAVA_HOME` and `PATH` are already set in the image.
+WPILib is installed under `/home/vscode/.local/share/wpilib/<year>/`, the installer's default location. `<year>` is the directory name the installer uses for that release (for example `2026`, or `2027_alpha7` for an alpha). Because that name varies between releases, `/home/vscode/.local/share/wpilib/.current` is a symlink to it. Use `.current` in paths. `JAVA_HOME` and `PATH` are already set in the image.
 
 ## Usage
 

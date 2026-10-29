@@ -34,10 +34,23 @@ check_java() {
   java -version >/dev/null 2>&1 || fail "java -version failed"
 }
 
+# The cross-compiler directory is fullConfig.json's CppToolchain.Directory: roborio for 2024-2026,
+# systemcore for 2027 and later (and the default when the key is absent).
+toolchain=""
+resolve_toolchain() {
+  [[ -n "$toolchain" ]] && return 0
+  toolchain="$(json_get "$cur/installUtils/fullConfig.json" 'd.get("CppToolchain", {}).get("Directory", "systemcore")')" \
+    || { fail "cannot read installUtils/fullConfig.json"; return 1; }
+  if [[ ! "$toolchain" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]; then
+    fail "refusing toolchain directory '$toolchain'"; toolchain=""; return 1
+  fi
+}
+
 check_compiler() {
   local gxx
-  gxx="$(compgen -G "$cur/systemcore/bin/*g++" | head -n1)"
-  if [[ -z "$gxx" ]]; then fail "no *g++ in .current/systemcore/bin"; return; fi
+  resolve_toolchain || return
+  gxx="$(compgen -G "$cur/$toolchain/bin/*g++" | head -n1)"
+  if [[ -z "$gxx" ]]; then fail "no *g++ in .current/$toolchain/bin"; return; fi
   "$gxx" --version >/dev/null 2>&1 || fail "$gxx --version failed"
 }
 
@@ -110,8 +123,9 @@ check_cpptools_vsix() {
   fi
 }
 
-check_no_systemcore() {
-  [[ ! -e "$cur/systemcore" ]] || fail ".current/systemcore must not exist in the java variant"
+check_no_toolchain() {
+  resolve_toolchain || return
+  [[ ! -e "$cur/$toolchain" ]] || fail ".current/$toolchain must not exist in the java variant"
 }
 
 check_no_native_tools() {
@@ -135,7 +149,7 @@ if [[ "$variant" == full ]]; then
   check_compiler
   check_cpptools_vsix present
 else
-  check_no_systemcore
+  check_no_toolchain
   check_cpptools_vsix absent
   check_no_native_tools
 fi
